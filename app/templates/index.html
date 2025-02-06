@@ -144,6 +144,22 @@
             analyzeButton.disabled = true;
         }
 
+        async function handleResponse(response, operation) {
+            const data = await response.json();
+
+            if (!response.ok || data.error) {
+                showError(data.error || `${operation} failed`);
+                throw new Error(data.error || `${operation} failed`);
+            }
+
+            return data;
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorAlert.classList.remove('hidden');
+        }
+
         uploadForm.addEventListener('submit', async (e) => {
             e.preventDefault();
 
@@ -167,18 +183,15 @@
             loadingDiv.classList.remove('hidden');
 
             try {
+                // Upload file
                 const uploadResponse = await fetch('/upload', {
                     method: 'POST',
                     body: formData
                 });
 
-                if (!uploadResponse.ok) {
-                    const errorData = await uploadResponse.json();
-                    throw new Error(errorData.error || 'Upload failed');
-                }
+                const uploadData = await handleResponse(uploadResponse, 'Upload');
 
-                const uploadData = await uploadResponse.json();
-
+                // Analyze file
                 const analysisResponse = await fetch('/analyze', {
                     method: 'POST',
                     headers: {
@@ -187,13 +200,9 @@
                     body: JSON.stringify({ file_path: uploadData.path })
                 });
 
-                if (!analysisResponse.ok) {
-                    const errorData = await analysisResponse.json();
-                    throw new Error(errorData.error || 'Analysis failed');
-                }
+                const response = await handleResponse(analysisResponse, 'Analysis');
 
-                const response = await analysisResponse.json();
-
+                // Display results
                 scoreSpan.textContent = response.score;
                 recommendationsList.innerHTML = response.recommendations
                     .map(rec => `<li class="flex items-start">
@@ -204,42 +213,24 @@
 
                 loadingDiv.classList.add('hidden');
                 resultsDiv.classList.remove('hidden');
+
             } catch (error) {
                 showError(error.message || 'An error occurred while analyzing your CV. Please try again.');
                 resetForm();
             }
         });
 
-        function showError(message) {
-            errorMessage.textContent = message;
-            errorAlert.classList.remove('hidden');
-        }
-
         async function resetForm() {
-            try {
-                // Call cleanup endpoint
-                const cleanupResponse = await fetch('/cleanup', {
-                    method: 'POST'
-                });
-
-                if (!cleanupResponse.ok) {
-                    console.error('Failed to cleanup files');
-                }
-            } catch (error) {
-                console.error('Error during cleanup:', error);
-            } finally {
-                // Regular form reset operations
-                uploadForm.reset();
-                uploadForm.classList.remove('hidden');
-                resultsDiv.classList.add('hidden');
-                loadingDiv.classList.add('hidden');
-                errorAlert.classList.add('hidden');
-                uploadState.classList.remove('hidden');
-                fileSelectedState.classList.add('hidden');
-                analyzeButton.classList.remove('bg-blue-500', 'hover:bg-blue-600');
-                analyzeButton.classList.add('bg-gray-400', 'cursor-not-allowed');
-                analyzeButton.disabled = true;
-            }
+            // Regular form reset operations
+            uploadForm.reset();
+            uploadForm.classList.remove('hidden');
+            resultsDiv.classList.add('hidden');
+            loadingDiv.classList.add('hidden');
+            uploadState.classList.remove('hidden');
+            fileSelectedState.classList.add('hidden');
+            analyzeButton.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+            analyzeButton.classList.add('bg-gray-400', 'cursor-not-allowed');
+            analyzeButton.disabled = true;
         }
     </script>
 </body>

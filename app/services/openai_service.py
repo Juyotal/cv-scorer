@@ -1,8 +1,9 @@
 import logging
 
 from openai import OpenAI
-from openai.error import APIConnectionError, RateLimitError
+from openai.error import APIConnectionError
 from retry import retry
+
 from config import CONFIG
 
 
@@ -42,7 +43,7 @@ class GPT4:
         self.client = OpenAI(api_key=CONFIG.ENV_CREDENTIALS.get('OPEN_AI_API_KEY'))
         self.engine = engine
 
-    @retry((RateLimitError, APIConnectionError), tries=5, delay=2, backoff=2, logger=logging.getLogger(__name__))
+    @retry(APIConnectionError, tries=5, delay=2, backoff=2, logger=logging.getLogger(__name__))
     def chat_completion_request(self, messages: list, output_structure: dict):
         """Sends a request to the OpenAI API to complete a chat message."""
         response = self.client.chat.completions.create(
