@@ -1,5 +1,9 @@
 output/
 venv/
 temp/
-pycache/
 .env
+flask_session
+.idea/
+app/__pycache__/
+app/services/__pycache__/
+__pycache__/

@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CV Scorer</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-2xl">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">CV Scorer</h1>
+            <p class="text-gray-600">Upload your CV to get instant feedback and recommendations</p>
+        </div>
+
+        <!-- Upload Section -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <form id="uploadForm" class="space-y-4">
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                    <input type="file"
+                           id="cvFile"
+                           name="cv"
+                           accept=".pdf"
+                           class="hidden"
+                           required>
+                    <label for="cvFile" class="cursor-pointer">
+                        <!-- Initial Upload State -->
+                        <div id="uploadState" class="space-y-2">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                            <div class="text-gray-600">
+                                <span class="font-medium">Click to upload</span> or drag and drop
+                            </div>
+                            <p class="text-sm text-gray-500">PDF files only</p>
+                        </div>
+
+                        <!-- File Selected State -->
+                        <div id="fileSelectedState" class="hidden space-y-3">
+                            <!-- Success Checkmark -->
+                            <svg class="mx-auto h-12 w-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <div class="text-sm font-medium text-gray-900">File Selected</div>
+                            <div id="fileName" class="text-sm text-gray-600 break-all"></div>
+                            <button type="button"
+                                    onclick="resetFileInput(event)"
+                                    class="text-sm text-red-600 hover:text-red-800">
+                                Remove file
+                            </button>
+                        </div>
+                    </label>
+                </div>
+                <button type="submit"
+                        id="analyzeButton"
+                        class="w-full bg-gray-400 text-white py-2 px-4 rounded-lg transition duration-200 cursor-not-allowed"
+                        disabled>
+                    Analyze CV
+                </button>
+            </form>
+        </div>
+
+        <!-- Error Alert -->
+        <div id="errorAlert" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4 hidden" role="alert">
+            <span id="errorMessage" class="block sm:inline"></span>
+        </div>
+
+        <!-- Results Section -->
+        <div id="results" class="bg-white rounded-lg shadow-md p-6 hidden">
+            <!-- Score Section -->
+            <div class="text-center mb-6">
+                <h2 class="text-xl font-semibold mb-2">Your CV Score</h2>
+                <div class="text-5xl font-bold text-blue-500">
+                    <span id="score">0</span><span class="text-2xl">/10</span>
+                </div>
+            </div>
+
+            <!-- Recommendations Section -->
+            <div class="space-y-4">
+                <h2 class="text-xl font-semibold">Recommendations</h2>
+                <ul id="recommendations" class="space-y-3 text-gray-700">
+                </ul>
+            </div>
+
+            <!-- Reset Button -->
+            <button onclick="resetForm()"
+                    class="mt-6 w-full bg-gray-500 text-white py-2 px-4 rounded-lg hover:bg-gray-600 transition duration-200">
+                Analyze Another CV
+            </button>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loading" class="text-center py-8 hidden">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+            <p class="mt-4 text-gray-600">Analyzing your CV...</p>
+        </div>
+    </div>
+
+    <script>
+        const uploadForm = document.getElementById('uploadForm');
+        const resultsDiv = document.getElementById('results');
+        const loadingDiv = document.getElementById('loading');
+        const recommendationsList = document.getElementById('recommendations');
+        const scoreSpan = document.getElementById('score');
+        const errorAlert = document.getElementById('errorAlert');
+        const errorMessage = document.getElementById('errorMessage');
+        const analyzeButton = document.getElementById('analyzeButton');
+        const uploadState = document.getElementById('uploadState');
+        const fileSelectedState = document.getElementById('fileSelectedState');
+        const fileName = document.getElementById('fileName');
+        const fileInput = document.getElementById('cvFile');
+
+        // Handle file selection
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                if (file.type !== 'application/pdf') {
+                    showError('Please select a PDF file');
+                    resetFileInput(e);
+                    return;
+                }
+
+                // Show file selected state
+                uploadState.classList.add('hidden');
+                fileSelectedState.classList.remove('hidden');
+                fileName.textContent = file.name;
+
+                // Enable analyze button
+                analyzeButton.classList.remove('bg-gray-400', 'cursor-not-allowed');
+                analyzeButton.classList.add('bg-blue-500', 'hover:bg-blue-600');
+                analyzeButton.disabled = false;
+            }
+        });
+
+        // Reset file input
+        function resetFileInput(e) {
+            e.preventDefault();
+            fileInput.value = '';
+            uploadState.classList.remove('hidden');
+            fileSelectedState.classList.add('hidden');
+            analyzeButton.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+            analyzeButton.classList.add('bg-gray-400', 'cursor-not-allowed');
+            analyzeButton.disabled = true;
+        }
+
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            errorAlert.classList.add('hidden');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                showError('Please select a file');
+                return;
+            }
+
+            if (!file.type.includes('pdf')) {
+                showError('Please upload a PDF file');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('cv', file);
+
+            uploadForm.classList.add('hidden');
+            loadingDiv.classList.remove('hidden');
+
+            try {
+                const uploadResponse = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!uploadResponse.ok) {
+                    const errorData = await uploadResponse.json();
+                    throw new Error(errorData.error || 'Upload failed');
+                }
+
+                const uploadData = await uploadResponse.json();
+
+                const analysisResponse = await fetch('/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ file_path: uploadData.path })
+                });
+
+                if (!analysisResponse.ok) {
+                    const errorData = await analysisResponse.json();
+                    throw new Error(errorData.error || 'Analysis failed');
+                }
+
+                const response = await analysisResponse.json();
+
+                scoreSpan.textContent = response.score;
+                recommendationsList.innerHTML = response.recommendations
+                    .map(rec => `<li class="flex items-start">
+                        <span class="text-blue-500 mr-2">•</span>
+                        <span>${rec}</span>
+                    </li>`)
+                    .join('');
+
+                loadingDiv.classList.add('hidden');
+                resultsDiv.classList.remove('hidden');
+            } catch (error) {
+                showError(error.message || 'An error occurred while analyzing your CV. Please try again.');
+                resetForm();
+            }
+        });
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorAlert.classList.remove('hidden');
+        }
+
+        async function resetForm() {
+            try {
+                // Call cleanup endpoint
+                const cleanupResponse = await fetch('/cleanup', {
+                    method: 'POST'
+                });
+
+                if (!cleanupResponse.ok) {
+                    console.error('Failed to cleanup files');
+                }
+            } catch (error) {
+                console.error('Error during cleanup:', error);
+            } finally {
+                // Regular form reset operations
+                uploadForm.reset();
+                uploadForm.classList.remove('hidden');
+                resultsDiv.classList.add('hidden');
+                loadingDiv.classList.add('hidden');
+                errorAlert.classList.add('hidden');
+                uploadState.classList.remove('hidden');
+                fileSelectedState.classList.add('hidden');
+                analyzeButton.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+                analyzeButton.classList.add('bg-gray-400', 'cursor-not-allowed');
+                analyzeButton.disabled = true;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,2 @@
+Here is the CV text for analysis:
+{input_string}
